@@ -31,7 +31,8 @@ print "loaded model:",datetime.datetime.now()
 
 outputfn = "/home/nikste/datasets/W2v_location_.csv"
 
-convert_text_to_vecs_stream(model,w2v_data,outputfn)
+# convert_text_to_vecs_stream(model,w2v_data,outputfn)
+convert_text_to_vecs(w2v_data,model)
 # convert_text_to_vecs(w2v_data,model)
 #
 # model.train(w2v_data)

@@ -7,8 +7,10 @@ import datetime
 
 import pickle
 
-from dataio import load_stopwords, write_training
+import gc
 
+from dataio import load_stopwords, write_training
+import numpy as np
 
 def extract_tweet_text(in_tweet_list):
     out_text = []
@@ -70,36 +72,72 @@ def preprocess_data():
 #     dataset = load_data()
 #     return stopwordlist
 def convert_text_to_vecs_stream(model,inputd,outputfn):
-    with open(outputfn,'wb') as f:
-        counter = 0
-        for r in range(0,len(inputd)):
-            counter += 1
-            if counter% 1000 == 0:
-                print counter/float(len(inputd)) , datetime.datetime.now()
-            for i in range(0,len(inputd[r])):
-                inputd[r][i] = model[inputd[r][i]]
-            for l in range(0,len(inputd[r])):
-                if l == len(inputd[r]) - 1:
-                    f.write(str(inputd[r][l]) + "\n")
-                else:
-                    f.write(str(inputd[r][l]) + ",")
+    # with open(outputfn,'wb') as f:
+    counter = 0
+    parts = 1000
+    print "before saving:", len(inputd)
+    for it in range(1,len(inputd)/parts + 1 ):
+        counter += 1
+        full = []
+        # print "computing:",(it - 1) * len(inputd)
+        for i in range((it - 1) * len(inputd)/parts,it * len(inputd)/parts):
+            intermediate = []
+            for r in range(0,len(inputd[i])):
+                intermediate.append(model[inputd[i][r]])
+
+            full.append(intermediate)
+        print "saving rows:",it," of ", len(inputd)/parts
+        pickle.dump(intermediate,open(outputfn + "_" + str(it),'wb'),protocol=pickle.HIGHEST_PROTOCOL)
+
+    if(int(len(inputd)/parts) < len(inputd)/float(parts)):
+        full = []
+        for i in range(int(len(inputd)/parts) * parts ,len(inputd)):
+            intermediate = []
+            for r in range(0, len(inputd[i])):
+                intermediate.append(model[inputd[i][r]])
+            full.append(intermediate)
+        print "saving rows:", counter, " of ", len(inputd) / 1000
+        pickle.dump(intermediate, open(outputfn + "_" + str(counter), 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+
+            # if counter% 1000 == 0:
+            #     print counter/float(len(inputd)) , datetime.datetime.now()
+            # for i in range(0,len(inputd[r])):
+            #     inputd[r][i] = model[inputd[r][i]]
+            # for l in range(0,len(inputd[r])):
+            #     if l == len(inputd[r]) - 1:
+            #         f.write(str(inputd[r][l]) + "\n")
+            #     else:
+            #         f.write(str(inputd[r][l]) + ",")
+def load_data_vecs(outputfn):
+    pass
 
 def convert_text_to_vecs(input,model):
     print "starting to convert input to vectors:",datetime.datetime.now()
     counter = 0
+    maximum = -9999
+    for i in range(0,len(input)):
+
+        if len(input[i])> maximum:
+            print len(input[i]),input[i]
+            maximum = len(input[i])
+    gc.collect()
+    print "allocating for",len(input),maximum,100
+    res = np.zeros((len(input),maximum,100))
     for r in range(0,len(input)):
         counter += 1
         if counter%int(len(input)/100) == 0:
             print counter/float(len(input)) * 100,datetime.datetime.now()
         for i in range(0,len(input[r])):
             #print input[r][i]
-            input[r][i] = model[input[r][i]]
+            # input[r][i] = model[input[r][i]]
+            res[r][i] = model[input[r][i]]
             #print input[r][i]
     print "saving to file",datetime.datetime.now()
 
 
 
     from sklearn.externals import joblib
-    pickle.dump(input,open("/home/nikste/datasets/W2v_location.csv",'wb'),protocol=pickle.HIGHEST_PROTOCOL)
+    joblib.dump(res,"/home/nikste/datasets/location_dataset/W2v_location.csv.pickle",compress=0,cache_size=3)
+    # pickle.dump(input,open("/home/nikste/datasets/W2v_location.csv.pickle",'wb'),protocol=pickle.HIGHEST_PROTOCOL)
     # with open("/home/nikste/datasets/tweets/W2v_location.csv",'wb') as f:
     #     pass
